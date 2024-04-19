@@ -1,41 +1,47 @@
-// Canvas
-const { body } = document;
-const canvas = document.createElement('canvas');
-const context = canvas.getContext('2d');
-const width = 500;
-const height = 700;
-const screenWidth = window.screen.width;
-const canvasPosition = screenWidth / 2 - width / 2;
-const isMobile = window.matchMedia('(max-width: 600px)');
-const gameOverEl = document.createElement('div');
+// Constants
+const CANVAS_WIDTH = 500;
+const CANVAS_HEIGHT = 700;
 
-// Paddle
-const paddleHeight = 10;
-const paddleWidth = 50;
-const paddleDiff = 25;
-let paddleBottomX = 225;
-let paddleTopX = 225;
-let playerMoved = false;
-let paddleContact = false;
+const PADDLE_HEIGHT = 10;
+const PADDLE_WIDTH = 50;
+const PADDLE_DIFF = 25;
 
-// Ball
-let ballX = 250;
-let ballY = 350;
-const ballRadius = 5;
+const BALL_RADIUS = 5;
+const BALL_START_X = CANVAS_WIDTH / 2;
+const BALL_START_Y = CANVAS_HEIGHT / 2;
 
-// Speed
-let speedY;
-let speedX;
-let trajectoryX;
-let computerSpeed;
+const INITIAL_SPEED_Y = -3;
+const MAX_SPEED_Y = 5;
+const MIN_SPEED_Y = -5;
+const COMPUTER_SPEED_INCREMENT = 0.3;
 
-// Score
+const WINNING_SCORE = 7;
+const PADDLE_MOVEMENT_INCREMENT = 2;
+const CENTER_LINE_DASH = [4];
+
+// Dynamic Variables
+let paddleBottomX = (CANVAS_WIDTH - PADDLE_WIDTH) / 2;
+let paddleTopX = (CANVAS_WIDTH - PADDLE_WIDTH) / 2;
+let ballX = BALL_START_X;
+let ballY = BALL_START_Y;
+let speedY, speedX, trajectoryX, computerSpeed;
 let playerScore = 0;
 let computerScore = 0;
-const winningScore = 7;
+let playerMoved = false;
+let paddleContact = false;
 let isGameOver = true;
 let isNewGame = true;
 
+// Canvas and Gameplay Setup
+const { body } = document;
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('2d');
+const screenWidth = window.screen.width;
+const canvasPosition = screenWidth / 2 - CANVAS_WIDTH / 2;
+const isMobile = window.matchMedia('(max-width: 600px)');
+const gameOverEl = document.createElement('div');
+
+// Adjust settings based on device
 function adjustSettingsForMobile() {
   if (isMobile.matches) {
     speedY = -2;
@@ -48,206 +54,225 @@ function adjustSettingsForMobile() {
   }
 }
 
-// Render Everything on Canvas
-function renderCanvas() {
-  // Canvas Background
+// Drawing functions
+function renderBackground() {
   context.fillStyle = 'black';
-  context.fillRect(0, 0, width, height);
+  context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+}
 
-  // Paddle Color
+function renderPlayerPaddle() {
+  context.fillRect(paddleBottomX, CANVAS_HEIGHT - 20, PADDLE_WIDTH, PADDLE_HEIGHT);
+}
+
+function renderComputerPaddle() {
+  context.fillRect(paddleTopX, 10, PADDLE_WIDTH, PADDLE_HEIGHT);
+}
+
+function renderPaddles() {
   context.fillStyle = 'white';
+  renderPlayerPaddle();
+  renderComputerPaddle();
+}
 
-  // Player Paddle (Bottom)
-  context.fillRect(paddleBottomX, height - 20, paddleWidth, paddleHeight);
-
-  // Computer Paddle (Top)
-  context.fillRect(paddleTopX, 10, paddleWidth, paddleHeight);
-
-  // Dashed Center Line
+function renderCenterLine() {
   context.beginPath();
-  context.setLineDash([4]);
-  context.moveTo(0, 350);
-  context.lineTo(500, 350);
+  context.setLineDash(CENTER_LINE_DASH);
+  context.moveTo(0, CANVAS_HEIGHT / 2);
+  context.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT / 2);
   context.strokeStyle = 'grey';
   context.stroke();
+}
 
-  // Ball
+function renderBall() {
   context.beginPath();
-  context.arc(ballX, ballY, ballRadius, 2 * Math.PI, false);
+  context.arc(ballX, ballY, BALL_RADIUS, 2 * Math.PI, false);
   context.fillStyle = 'white';
   context.fill();
+}
 
-  // Score
+function renderScore() {
   context.font = '32px Courier New';
-  context.fillText(playerScore, 20, canvas.height / 2 + 50);
-  context.fillText(computerScore, 20, canvas.height / 2 - 30);
+  context.fillText(playerScore, 20, CANVAS_HEIGHT / 2 + 50);
+  context.fillText(computerScore, 20, CANVAS_HEIGHT / 2 - 30);
 }
 
-// Create Canvas Element
-function createCanvas() {
-  canvas.width = width;
-  canvas.height = height;
-  body.appendChild(canvas);
-  renderCanvas();
+function renderCanvas() {
+  renderBackground();
+  renderPaddles();
+  renderCenterLine();
+  renderBall();
+  renderScore();
 }
 
-// Reset Ball to Center
+// Game Mechanics
 function ballReset() {
-  ballX = width / 2;
-  ballY = height / 2;
-  speedY = -3;
-  paddleContact = false;
+  ballX = BALL_START_X;
+  ballY = BALL_START_Y;
+  speedY = INITIAL_SPEED_Y;
 }
 
-// Adjust Ball Movement
 function ballMove() {
-  // Vertical Speed
   ballY += -speedY;
-  // Horizontal Speed
+
   if (playerMoved && paddleContact) {
     ballX += speedX;
   }
 }
 
-// Determine What Ball Bounces Off, Score Points, Reset Ball
-function ballBoundaries() {
-  // Bounce off Left Wall
+function checkWallCollisions() {
   if (ballX < 0 && speedX < 0) {
     speedX = -speedX;
   }
-  // Bounce off Right Wall
-  if (ballX > width && speedX > 0) {
+
+  if (ballX > CANVAS_WIDTH && speedX > 0) {
     speedX = -speedX;
   }
-  // Bounce off player paddle (bottom)
-  if (ballY > height - paddleDiff) {
-    if (ballX > paddleBottomX && ballX < paddleBottomX + paddleWidth) {
-      paddleContact = true;
-      // Add Speed on Hit
-      if (playerMoved) {
-        speedY -= 1;
-        // Max Speed
-        if (speedY < -5) {
-          speedY = -5;
-          computerSpeed = 6;
-        }
+}
+
+function increaseBallSpeedOnHit(isTopPaddle = false) {
+  if (playerMoved) {
+    if (isTopPaddle) {
+      speedY += 1;
+      if (speedY > MAX_SPEED_Y) {
+        speedY = MAX_SPEED_Y;
       }
+    } else {
+      speedY -= 1;
+      if (speedY < MIN_SPEED_Y) {
+        speedY = MIN_SPEED_Y;
+        computerSpeed = 6;
+      }
+    }
+  }
+}
+
+function checkPlayerPaddleCollision() {
+  if (ballY > CANVAS_HEIGHT - PADDLE_DIFF) {
+    if (ballX > paddleBottomX && ballX < paddleBottomX + PADDLE_WIDTH) {
+      paddleContact = true;
+      increaseBallSpeedOnHit();
       speedY = -speedY;
-      trajectoryX = ballX - (paddleBottomX + paddleDiff);
-      speedX = trajectoryX * 0.3;
-    } else if (ballY > height) {
-      // Reset Ball, add to Computer Score
+      trajectoryX = ballX - (paddleBottomX + PADDLE_DIFF);
+      speedX = trajectoryX * COMPUTER_SPEED_INCREMENT;
+    } else if (ballY > CANVAS_HEIGHT) {
       ballReset();
       computerScore++;
     }
   }
-  // Bounce off computer paddle (top)
-  if (ballY < paddleDiff) {
-    if (ballX > paddleTopX && ballX < paddleTopX + paddleWidth) {
-      // Add Speed on Hit
-      if (playerMoved) {
-        speedY += 1;
-        // Max Speed
-        if (speedY > 5) {
-          speedY = 5;
-        }
-      }
+}
+
+function checkComputerPaddleCollision() {
+  if (ballY < PADDLE_DIFF) {
+    if (ballX > paddleTopX && ballX < paddleTopX + PADDLE_WIDTH) {
+      increaseBallSpeedOnHit(true);
       speedY = -speedY;
     } else if (ballY < 0) {
-      // Reset Ball, add to Player Score
       ballReset();
       playerScore++;
     }
   }
 }
 
-// Computer Movement
+function checkPaddleCollisions() {
+  checkPlayerPaddleCollision();
+  checkComputerPaddleCollision();
+}
+
+function ballBoundaries() {
+  checkWallCollisions();
+  checkPaddleCollisions();
+}
+
 function computerAI() {
-  const maxPaddleShift = 3;
+  let maxPaddleShift = 3 + Math.floor(computerScore / PADDLE_MOVEMENT_INCREMENT);
 
   if (playerMoved) {
-    const moveAmount = Math.min(
-      Math.abs(ballX - (paddleTopX + paddleDiff)),
-      maxPaddleShift
-    );
-    if (paddleTopX + paddleDiff < ballX) {
-      paddleTopX += moveAmount;
-    } else if (paddleTopX + paddleDiff > ballX) {
-      paddleTopX -= moveAmount;
-    }
+    const targetPosition = ballX - PADDLE_DIFF;
+    const currentCenter = paddleTopX + PADDLE_WIDTH / 2;
+
+    let moveAmount =
+      Math.sign(targetPosition - currentCenter) *
+      Math.min(Math.abs(targetPosition - currentCenter), maxPaddleShift);
+
+    paddleTopX += moveAmount;
+    paddleTopX = Math.max(0, Math.min(CANVAS_WIDTH - PADDLE_WIDTH, paddleTopX));
   }
 }
 
 function showGameOverEl(winner) {
-  // Hide Canvas
   canvas.hidden = true;
-  // Container
   gameOverEl.textContent = '';
   gameOverEl.classList.add('game-over-container');
-  // Title
+
   const title = document.createElement('h1');
   title.textContent = `${winner} Wins!`;
-  // Button
+
   const playAgainBtn = document.createElement('button');
-  playAgainBtn.setAttribute('onclick', 'startGame()');
+  playAgainBtn.addEventListener('click', startGame);
   playAgainBtn.textContent = 'Play Again';
-  // Append
+
   gameOverEl.append(title, playAgainBtn);
   body.appendChild(gameOverEl);
 }
 
-// Check If One Player Has Winning Score, If They Do, End Game
 function gameOver() {
-  if (playerScore === winningScore || computerScore === winningScore) {
+  if (playerScore === WINNING_SCORE || computerScore === WINNING_SCORE) {
     isGameOver = true;
-    // Set Winner
-    const winner = playerScore === winningScore ? 'Player 1' : 'Computer';
+    const winner = playerScore === WINNING_SCORE ? 'Player' : 'Computer';
     showGameOverEl(winner);
   }
 }
 
-// Called Every Frame
 function animate() {
   renderCanvas();
   ballMove();
   ballBoundaries();
   computerAI();
   gameOver();
+
   if (!isGameOver) {
     window.requestAnimationFrame(animate);
   }
 }
 
-// Start Game, Reset Everything
-function startGame() {
-  if (isGameOver && !isNewGame) {
-    body.removeChild(gameOverEl);
-    canvas.hidden = false;
-  }
-
+function resetGameState() {
   isGameOver = false;
   isNewGame = false;
   playerScore = 0;
   computerScore = 0;
+}
+
+function setupCanvas() {
+  canvas.width = CANVAS_WIDTH;
+  canvas.height = CANVAS_HEIGHT;
+  body.appendChild(canvas);
 
   adjustSettingsForMobile();
   ballReset();
-  createCanvas();
-  animate();
+  renderCanvas();
+}
 
-  canvas.addEventListener('mousemove', (e) => {
-    playerMoved = true;
-    // Compensate for canvas being centered
-    paddleBottomX = e.clientX - canvasPosition - paddleDiff;
-    if (paddleBottomX < paddleDiff) {
-      paddleBottomX = 0;
-    }
-    if (paddleBottomX > width - paddleWidth) {
-      paddleBottomX = width - paddleWidth;
-    }
-    // Hide Cursor
-    canvas.style.cursor = 'none';
-  });
+function setupEventListeners() {
+  canvas.removeEventListener('mousemove', handleMouseMove);
+  canvas.addEventListener('mousemove', handleMouseMove);
+  canvas.style.cursor = 'none';
+}
+
+function handleMouseMove(e) {
+  playerMoved = true;
+  paddleBottomX = e.clientX - canvasPosition - PADDLE_DIFF;
+  paddleBottomX = Math.max(0, Math.min(CANVAS_WIDTH - PADDLE_WIDTH, paddleBottomX));
+}
+
+function startGame() {
+  if (isGameOver && !isNewGame) {
+    body.removeChild(gameOverEl);
+  }
+
+  resetGameState();
+  setupCanvas();
+  animate();
+  setupEventListeners();
 }
 
 // On Load
