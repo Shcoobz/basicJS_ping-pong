@@ -29,23 +29,24 @@ let speedX;
 let trajectoryX;
 let computerSpeed;
 
-// Change Mobile Settings
-if (isMobile.matches) {
-  speedY = -2;
-  speedX = speedY;
-  computerSpeed = 4;
-} else {
-  speedY = -1;
-  speedX = speedY;
-  computerSpeed = 3;
-}
-
 // Score
 let playerScore = 0;
 let computerScore = 0;
 const winningScore = 7;
 let isGameOver = true;
 let isNewGame = true;
+
+function adjustSettingsForMobile() {
+  if (isMobile.matches) {
+    speedY = -2;
+    speedX = speedY;
+    computerSpeed = 4;
+  } else {
+    speedY = -1;
+    speedX = speedY;
+    computerSpeed = 3;
+  }
+}
 
 // Render Everything on Canvas
 function renderCanvas() {
@@ -162,11 +163,17 @@ function ballBoundaries() {
 
 // Computer Movement
 function computerAI() {
+  const maxPaddleShift = 3;
+
   if (playerMoved) {
+    const moveAmount = Math.min(
+      Math.abs(ballX - (paddleTopX + paddleDiff)),
+      maxPaddleShift
+    );
     if (paddleTopX + paddleDiff < ballX) {
-      paddleTopX += computerSpeed;
-    } else {
-      paddleTopX -= computerSpeed;
+      paddleTopX += moveAmount;
+    } else if (paddleTopX + paddleDiff > ballX) {
+      paddleTopX -= moveAmount;
     }
   }
 }
@@ -217,13 +224,17 @@ function startGame() {
     body.removeChild(gameOverEl);
     canvas.hidden = false;
   }
+
   isGameOver = false;
   isNewGame = false;
   playerScore = 0;
   computerScore = 0;
+
+  adjustSettingsForMobile();
   ballReset();
   createCanvas();
   animate();
+
   canvas.addEventListener('mousemove', (e) => {
     playerMoved = true;
     // Compensate for canvas being centered
