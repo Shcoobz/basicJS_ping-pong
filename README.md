@@ -41,4 +41,4 @@ The game includes a simple yet effective scoring system where players earn a poi
 
 _Note: This document provides an overview of basicJS_Ping Pong. For detailed instructions and more information, please refer to the source code documentation._
 
-_This project has been enhanced and converted into a React-based application, which can be viewed [here](https://github.com/Shcoobz/react_ping-pong/). The React version integrates more advanced state management and component-based architecture for improved maintainability and scalability._
+_This project has been enhanced and converted into a React-based application, which can be viewed [here](https://github.com/Shcoobz/advancedJS_ping-pong/). The React version integrates more advanced state management and component-based architecture for improved maintainability and scalability._
